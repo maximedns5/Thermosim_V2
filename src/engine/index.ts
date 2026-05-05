@@ -1,0 +1,21 @@
+// Façade publique du moteur thermique
+export { solveSteady } from './solver/steady';
+export { solveDynamic } from './solver/dynamic';
+export { dpeFromEnergy, dpeFromCO2, dpeDouble, toEP, toCO2, toCost, dpeIndex } from './energy/dpe';
+export { Wall } from './models/wall';
+export { Window } from './models/window';
+export { HeatPump } from './models/heatPump';
+export { Ventilation } from './models/ventilation';
+export { pmv, ppd, tOperative, comfortCategory } from './physics/comfort';
+export { glaser, dewPoint, psat, fRsi } from './physics/humidity';
+export { solarPosition, irradianceOnPlane } from './physics/solar';
+export { windAtHeight, RseDynamic } from './physics/wind';
+export { MATERIALS_DB, MATERIAL_CATEGORIES } from './data/materials';
+export { GLAZING_DB, FRAME_DB } from './data/glazings';
+export { HEATING_SYSTEMS, COOLING_SYSTEMS, ECS_SYSTEMS, VMC_TYPES } from './data/hvac';
+export { ENERGY_VECTORS, DPE_THRESHOLDS, DPE_CO2_THRESHOLDS } from './data/energy';
+export { THERMAL_BRIDGES } from './data/thermalBridges';
+export { AIRTIGHTNESS_LEVELS, SHADING_DEVICES } from './data/airtightness';
+export { INTERNAL_GAINS_PROFILES } from './data/gains';
+export { SCENARIOS } from './data/scenarios';
+export type * from './types';

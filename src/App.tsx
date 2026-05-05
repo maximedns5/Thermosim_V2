@@ -1,0 +1,162 @@
+import React, { Suspense, lazy } from 'react';
+import { LazyMotion, domAnimation, m, AnimatePresence, MotionConfig } from 'framer-motion';
+import { Header } from './components/layout/Header';
+import { MetricsBar } from './components/layout/MetricsBar';
+import { Folio } from './components/layout/Folio';
+import { SplashScreen } from './components/layout/SplashScreen';
+import { ConfigPanel } from './components/config/ConfigPanel';
+import { FacadeView } from './components/svg/FacadeView';
+import { SectionView } from './components/svg/SectionView';
+import { PlanView } from './components/svg/PlanView';
+import { AnalyseView } from './components/views/AnalyseView';
+import { useUIStore } from './store/uiStore';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { HeatLossHeatmap } from './components/charts/HeatLossHeatmap';
+import { SankeyEnergy } from './components/charts/SankeyEnergy';
+import { TimeSeries24h } from './components/charts/TimeSeries24h';
+import { TimeSeriesAnnual } from './components/charts/TimeSeriesAnnual';
+import { GlaserDiagram } from './components/charts/GlaserDiagram';
+import { HvacPerformance } from './components/charts/HvacPerformance';
+import { ScenarioRadar } from './components/charts/ScenarioRadar';
+
+const BuildingScene = lazy(() =>
+  import('./components/three/BuildingScene').then((m) => ({ default: m.BuildingScene }))
+);
+
+const viewTransition = {
+  initial: { opacity: 0, filter: 'blur(3px)', scale: 0.995 },
+  animate: { opacity: 1, filter: 'blur(0px)', scale: 1 },
+  exit:    { opacity: 0, filter: 'blur(3px)', scale: 1.005 },
+  transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const },
+};
+
+/** Grid of charts — CHARTS view */
+function ChartsView() {
+  const charts = [
+    { key: 'sankey',   label: 'Flux Énergie',        el: <SankeyEnergy /> },
+    { key: 'heatmap',  label: 'Carte Pertes',         el: <HeatLossHeatmap /> },
+    { key: 'ts24',     label: 'Température 24h',      el: <TimeSeries24h /> },
+    { key: 'tsannual', label: 'Température Annuelle', el: <TimeSeriesAnnual /> },
+    { key: 'glaser',   label: 'Diagramme Glaser',     el: <GlaserDiagram /> },
+    { key: 'hvac',     label: 'Performance HVAC',     el: <HvacPerformance /> },
+    { key: 'radar',    label: 'Radar Scénarios',      el: <ScenarioRadar /> },
+  ];
+
+  return (
+    <div
+      className="w-full h-full overflow-auto p-4"
+      style={{ background: '#0A0D12' }}
+    >
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}
+      >
+        {charts.map((c, idx) => (
+          <m.div
+            key={c.key}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: idx * 0.08, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              background: '#0D1117',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 4,
+              padding: 16,
+            }}
+          >
+            <p
+              className="mb-3 uppercase tracking-widest"
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 500,
+                fontSize: 11,
+                color: 'rgba(232,228,218,0.7)',
+              }}
+            >
+              {c.label}
+            </p>
+            {c.el}
+          </m.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ViewPane() {
+  const { activeView } = useUIStore();
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          {activeView === '3d' && (
+            <m.div key="3d" {...viewTransition} className="absolute inset-0">
+              <Suspense fallback={
+                <div className="w-full h-full flex items-center justify-center text-xs font-mono text-ink-4"
+                  style={{ background: '#0A0D12', color: 'rgba(232,228,218,0.4)' }}>
+                  Chargement moteur 3D…
+                </div>
+              }>
+                <BuildingScene />
+              </Suspense>
+            </m.div>
+          )}
+          {activeView === 'facade' && (
+            <m.div key="facade" {...viewTransition} className="absolute inset-0 w-full h-full overflow-auto p-4 bg-paper">
+              <FacadeView />
+            </m.div>
+          )}
+          {activeView === 'coupe' && (
+            <m.div key="coupe" {...viewTransition} className="absolute inset-0 w-full h-full overflow-auto p-4 bg-paper">
+              <SectionView />
+            </m.div>
+          )}
+          {activeView === 'plan' && (
+            <m.div key="plan" {...viewTransition} className="absolute inset-0 w-full h-full overflow-auto p-4 bg-paper">
+              <PlanView />
+            </m.div>
+          )}
+          {activeView === 'analyse' && (
+            <m.div key="analyse" {...viewTransition} className="absolute inset-0 w-full h-full">
+              <AnalyseView />
+            </m.div>
+          )}
+          {activeView === 'charts' && (
+            <m.div key="charts" {...viewTransition} className="absolute inset-0 w-full h-full">
+              <ChartsView />
+            </m.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  useKeyboardShortcuts();
+  const { appUnlocked } = useUIStore();
+
+  return (
+    <LazyMotion features={domAnimation}>
+      <MotionConfig reducedMotion="user">
+        <AnimatePresence mode="wait">
+          {!appUnlocked && <SplashScreen key="splash" />}
+        </AnimatePresence>
+
+        {appUnlocked && (
+          <div className="flex flex-col h-screen overflow-hidden bg-paper font-sans">
+            <Header />
+            <MetricsBar />
+            <div className="flex flex-1 min-h-0 overflow-hidden relative">
+              <ViewPane />
+              {/* Config drawer rendered above ViewPane */}
+              <ConfigPanel />
+            </div>
+            <Folio />
+          </div>
+        )}
+      </MotionConfig>
+    </LazyMotion>
+  );
+}

@@ -1,0 +1,87 @@
+:root {
+  /* ── SURFACES ──────────────────────────────────────────── */
+  --color-bg:              #F2EFE8;   /* papier calque chaud */
+  --color-surface:         #F7F5F0;
+  --color-surface-2:       #FAFAF8;
+  --color-surface-dark:    #0A0D12;   /* fond splash / MetricsBar */
+  --color-surface-panel:   #EDEBE4;   /* ConfigPanel */
+
+  /* rétro-compatibilité */
+  --color-paper:           #F2EFE8;
+  --color-paper-alt:       #EDEBE4;
+
+  /* ── TEXTE ─────────────────────────────────────────────── */
+  --color-ink:             #0D0D0D;
+  --color-ink-2:           #2A2A2A;
+  --color-ink-3:           #6B6B6B;
+  --color-ink-4:           #A8A5A0;
+  --color-ink-inv:         #E8E4DA;   /* texte sur fond dark */
+
+  /* ── ACCENT PRIMAIRE — bleu nuit froid ────────────────── */
+  --color-accent-primary:  #1A3550;
+  --color-accent-glow:     rgba(26, 53, 80, 0.12);
+
+  /* ── ACCENT SECONDAIRE — orange terre ─────────────────── */
+  --color-accent:          #C1440E;
+  --color-accent-soft:     rgba(193, 68, 14, 0.10);
+
+  /* ── ACCENT ÉNERGIE — teal lumineux ───────────────────── */
+  --color-energy:          #0B7A63;
+  --color-energy-soft:     rgba(11, 122, 99, 0.10);
+
+  /* ── FILETS ────────────────────────────────────────────── */
+  --color-rule:            #C8C5BE;
+  --color-rule-soft:       #E2DFD8;
+
+  /* ── TYPOGRAPHIE ───────────────────────────────────────── */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-sans:    "IBM Plex Sans", system-ui, sans-serif;
+  --font-serif:   "IBM Plex Serif", ui-serif, serif;
+
+  /* ── ESPACEMENTS (grille 4px) ──────────────────────────── */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* ── TRAITS (ISO 128) ──────────────────────────────────── */
+  --stroke-hair:    0.5px;
+  --stroke-thin:    1px;
+  --stroke-medium:  1.5px;
+  --stroke-thick:   2px;
+
+  /* ── RAYONS DE BORDURE ─────────────────────────────────── */
+  --radius-none:    0;
+  --radius-subtle:  2px;
+  --radius-soft:    3px;
+
+  /* ── TRANSITIONS ───────────────────────────────────────── */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-linear: linear;
+
+  --dur-fast: 150ms;
+  --dur-mid:  280ms;
+  --dur-slow: 500ms;
+
+  /* rétro-compatibilité */
+  --duration-instant: 80ms;
+  --duration-quick:   150ms;
+  --duration-medium:  250ms;
+  --duration-slow:    400ms;
+
+  /* ── ALIAS COURTS (composants) ─────────────────────────── */
+  --ink:    var(--color-ink);
+  --paper:  var(--color-bg);
+  --accent: var(--color-accent);
+  --muted:  var(--color-ink-3);
+  --subtle: var(--color-rule-soft);
+  --radius-sm: var(--radius-subtle);
+}
