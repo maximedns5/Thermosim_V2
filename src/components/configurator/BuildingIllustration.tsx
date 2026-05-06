@@ -109,14 +109,21 @@ export function BuildingIllustration({ scrollProgress }: Props) {
     ? Math.max(5, (insulLayer?.thickness ?? 0.1) * scale * 1.8)
     : 0;
 
-  // ── Origin: bottom-front-left corner ──
+  // ── Origin: bottom-SOUTH-WEST corner (viewer sees South + East faces) ──
+  // Correct isometric: x→right-down, z→left-down (depth recedes upper-left)
+  // screen_y uses (x-z)*SIN30 so south face (z=0) sits at bottom, north (z=D) sits higher
   const screenW = (W + D) * COS30;
   const screenH = H + (W + D) * SIN30;
+  // OX: leave room for NW corner which goes to OX - D*COS30
   const OX = PAD + D * COS30 + (availW - screenW) / 2;
-  const OY = PAD + H + (availH - screenH) / 2 + (W + D) * SIN30;
+  // OY: bottom of building = SE corner at OY + W*SIN30; centre vertically
+  const OY = PAD + H + D * SIN30 + (availH - screenH) / 2;
 
   function iso(x: number, y: number, z: number): [number, number] {
-    return [OX + (x - z) * COS30, OY - y + (x + z) * SIN30];
+    return [
+      OX + (x - z) * COS30,
+      OY - y + (x - z) * SIN30,  // (x-z) not (x+z): depth recedes upward
+    ];
   }
 
   // ── Windows ──
@@ -199,13 +206,13 @@ export function BuildingIllustration({ scrollProgress }: Props) {
       {/* Sky */}
       <rect x="0" y="0" width={VB_W} height={VB_H} fill="url(#skyGrad)" />
 
-      {/* Ground shadow */}
+      {/* Ground shadow — centre = midpoint of ground plane with corrected formula */}
       <ellipse
         cx={OX + (W - D) * COS30 / 2}
-        cy={OY + (W + D) * SIN30 * 0.55}
-        rx={(W + D) * COS30 * 0.5}
-        ry={(W + D) * SIN30 * 0.25}
-        fill="rgba(0,0,0,0.18)"
+        cy={OY + (W - D) * SIN30 / 2 + 6}
+        rx={(W + D) * COS30 * 0.52}
+        ry={(W + D) * SIN30 * 0.18}
+        fill="rgba(0,0,0,0.22)"
       />
 
       {/* Ground plane */}
@@ -276,59 +283,55 @@ export function BuildingIllustration({ scrollProgress }: Props) {
         <motion.g style={{ opacity: insulGlow }}>
           {insulationPosition === 'ITE' ? (
             <>
-              {/* Exterior insulation — left strip on front */}
+              {/* ITE — exterior: strip outside the south face (x < 0 direction) */}
               <polygon
                 points={pts(
-                  iso(-insulThickPx/scale, 0, 0),
                   iso(0, 0, 0),
                   iso(0, H, 0),
-                  iso(-insulThickPx/scale, H, 0)
+                  [iso(0, H, 0)[0] - insulThickPx * COS30, iso(0, H, 0)[1] - insulThickPx * SIN30],
+                  [iso(0, 0, 0)[0] - insulThickPx * COS30, iso(0, 0, 0)[1] - insulThickPx * SIN30],
                 )}
-                fill={insulColor}
-                stroke={darken(insulColor, 0.1)}
-                strokeWidth="0.6"
+                fill={insulColor} stroke={darken(insulColor, 0.1)} strokeWidth="0.6"
               />
-              {/* Exterior insulation — right strip on right face */}
+              {/* ITE — exterior: strip outside the east face (z > D direction) */}
               <polygon
                 points={pts(
                   iso(W, 0, D),
-                  iso(W, 0, D + insulThickPx/scale),
-                  iso(W, H, D + insulThickPx/scale),
-                  iso(W, H, D)
+                  iso(W, H, D),
+                  [iso(W, H, D)[0] - insulThickPx * COS30, iso(W, H, D)[1] - insulThickPx * SIN30],
+                  [iso(W, 0, D)[0] - insulThickPx * COS30, iso(W, 0, D)[1] - insulThickPx * SIN30],
                 )}
-                fill={darken(insulColor, 0.08)}
-                stroke={darken(insulColor, 0.15)}
-                strokeWidth="0.6"
+                fill={darken(insulColor, 0.08)} stroke={darken(insulColor, 0.15)} strokeWidth="0.6"
               />
               <text
-                x={iso(-insulThickPx/scale - 3, H * 0.6, 0)[0]}
-                y={iso(-insulThickPx/scale - 3, H * 0.6, 0)[1]}
+                x={iso(0, H * 0.6, 0)[0] - insulThickPx * COS30 - 4}
+                y={iso(0, H * 0.6, 0)[1] - insulThickPx * SIN30}
                 fontSize="7" fill={insulColor} textAnchor="end"
-                fontFamily="var(--font-mono)" fontWeight="600">
-                ITE
-              </text>
+                fontFamily="var(--font-mono)" fontWeight="600">ITE</text>
             </>
           ) : (
-            <polygon
-              points={pts(
-                iso(0, 0, 0),
-                iso(insulThickPx/scale, 0, 0),
-                iso(insulThickPx/scale, H, 0),
-                iso(0, H, 0)
-              )}
-              fill={insulColor}
-              stroke={darken(insulColor, 0.1)}
-              strokeWidth="0.6"
-              opacity="0.9"
-            />
+            <>
+              {/* ITI — interior: thin strip inside the south face (near left edge) */}
+              <polygon
+                points={pts(
+                  iso(0, 0, 0),
+                  iso(insulThickPx / scale, 0, 0),
+                  iso(insulThickPx / scale, H, 0),
+                  iso(0, H, 0)
+                )}
+                fill={insulColor} stroke={darken(insulColor, 0.1)} strokeWidth="0.6" opacity="0.9"
+              />
+              <text
+                x={iso(insulThickPx / scale + 1, H * 0.5, 0)[0] + 2}
+                y={iso(insulThickPx / scale + 1, H * 0.5, 0)[1]}
+                fontSize="7" fill={insulColor} textAnchor="start"
+                fontFamily="var(--font-mono)" fontWeight="600">ITI</text>
+            </>
           )}
-          {/* Insulation glow */}
+          {/* Glow highlight when insulation section is active */}
           <motion.polygon
-            points={hasInsul && insulationPosition === 'ITE'
-              ? pts(iso(-insulThickPx/scale,0,0), iso(0,0,0), iso(0,H,0), iso(-insulThickPx/scale,H,0))
-              : pts(iso(0,0,0), iso(insulThickPx/scale,0,0), iso(insulThickPx/scale,H,0), iso(0,H,0))
-            }
-            fill="none" stroke={insulColor} strokeWidth="2"
+            points={pts(iso(0,0,0), iso(W,0,0), iso(W,H,0), iso(0,H,0))}
+            fill="none" stroke={insulColor} strokeWidth="2.5"
             filter="url(#softGlow)"
             style={{ opacity: insulGlowStroke }}
           />
