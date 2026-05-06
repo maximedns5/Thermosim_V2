@@ -8,10 +8,8 @@ import type { ViewMode } from '../../store/uiStore';
 const VIEWS: Array<{ id: ViewMode; label: string; shortcut: string }> = [
   { id: 'configure', label: 'CONFIGURE', shortcut: '1' },
   { id: 'facade',    label: 'FACADE',    shortcut: '2' },
-  { id: 'coupe',     label: 'SECTION',   shortcut: '3' },
-  { id: 'plan',      label: 'PLAN',      shortcut: '4' },
-  { id: 'analyse',   label: 'ANALYSIS',  shortcut: '5' },
-  { id: 'charts',    label: 'CHARTS',    shortcut: '6' },
+  { id: 'analyse',   label: 'ANALYSIS',  shortcut: '3' },
+  { id: 'charts',    label: 'CHARTS',    shortcut: '4' },
 ];
 
 export function Header() {

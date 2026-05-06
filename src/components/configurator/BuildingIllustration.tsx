@@ -1,498 +1,502 @@
-// BuildingIllustration — SVG animé scroll-driven, matériaux réalistes
+// BuildingIllustration — isometric 3D SVG, fully reactive to buildingStore
+// Building always visible; scroll highlights the active section's component
 import { useTransform, useSpring, motion, type MotionValue } from 'framer-motion';
 import { useMemo } from 'react';
 import { useBuildingStore } from '../../store/buildingStore';
 import { MATERIALS_DB } from '../../engine/data/materials';
 
-// ─── Palette matériaux réaliste ──────────────────────────────────────────────
-const STRUCTURE_COLORS: Record<string, string> = {
-  beton_arme:       '#B8B5AE',
-  brique_monomur:   '#C4622D',
-  brique_pleine:    '#B85530',
-  brique_creuse:    '#CB7040',
-  ossature_bois:    '#C4A374',
-  bois_massif:      '#BC9860',
-  acier:            '#6B8FA8',
-  enduit_platre:    '#E0DDD6',
-  enduit_ciment:    '#C8C4BC',
-  default:          '#B8B5AE',
+// ─── Material palettes ───────────────────────────────────────────────────────
+// Each entry: [front face, right face, top face]
+const STRUCT_COLORS: Record<string, [string, string, string]> = {
+  beton_arme:       ['#C8C4BC', '#AEAAA4', '#D8D5CE'],
+  brique_monomur:   ['#C4622D', '#A8502A', '#D47050'],
+  brique_pleine:    ['#B85530', '#9A4428', '#CC6845'],
+  brique_creuse:    ['#CB7040', '#AD5C32', '#D88055'],
+  ossature_bois:    ['#C4A374', '#A88A60', '#D4B888'],
+  bois_massif:      ['#BC9860', '#A08050', '#CCAC78'],
+  acier:            ['#7090A8', '#567890', '#88A8C0'],
+  enduit_platre:    ['#E0DDD6', '#C8C5BE', '#ECEAE4'],
+  enduit_ciment:    ['#C8C4BC', '#B0ACA4', '#D8D5CE'],
+  default:          ['#C8C4BC', '#AEAAA4', '#D8D5CE'],
 };
 
 const INSUL_COLORS: Record<string, string> = {
-  laine_de_verre_32:  '#F0C040',
-  laine_de_verre_35:  '#EAB830',
-  laine_roche_40:     '#D4A030',
-  polystyrene_expanse:'#F5F0E4',
-  polystyrene_extrude:'#E8E4F0',
-  polyurethane:       '#F8E4A0',
-  laine_bois:         '#8BC48A',
-  chanvre:            '#A0C870',
-  ouate_cellulose:    '#B8C8A0',
-  default:            '#F0C040',
+  laine_de_verre_32: '#F0C040',
+  laine_de_verre_35: '#EAB830',
+  laine_roche_40:    '#D4A030',
+  polystyrene_expanse:'#EDE8D4',
+  polystyrene_extrude:'#E0DCF0',
+  polyurethane:      '#F0DC90',
+  laine_bois:        '#8BC48A',
+  chanvre:           '#A0C870',
+  ouate_cellulose:   '#B8C8A0',
+  default:           '#F0C040',
 };
 
-const ROOF_COLORS: Record<string, { fill: string; accent: string }> = {
-  flat_concrete:  { fill: '#8A8680', accent: '#9A9690' },
-  green:          { fill: '#4A8A4A', accent: '#5CA05C' },
-  inclined_tiles: { fill: '#8B4030', accent: '#A05040' },
-  cool_roof:      { fill: '#E0E0E0', accent: '#ECECEC' },
+const ROOF_FILLS: Record<string, { top: string; front: string; right: string }> = {
+  flat_concrete:  { top: '#A0A098', front: '#8A8882', right: '#787870' },
+  green:          { top: '#4A8A4A', front: '#3A7A3A', right: '#2E6A2E' },
+  inclined_tiles: { top: '#8B4030', front: '#7A3828', right: '#6A3020' },
+  cool_roof:      { top: '#D8D8DC', front: '#C0C0C4', right: '#B0B0B4' },
 };
 
-const GLASS_COLOR = 'rgba(100, 185, 230, 0.55)';
-const GLASS_SHIMMER = 'rgba(200, 230, 255, 0.25)';
-const CITY_COLORS: Record<string, string> = {
-  paris: '#6080A8', strasbourg: '#4870A0', brest: '#5890B8',
-  bordeaux: '#C09050', lyon: '#8098B0', marseille: '#E09050',
-  clermont: '#7090A8', perpignan: '#D08040',
+const CITY_SKY: Record<string, string> = {
+  paris: '#4870A0', strasbourg: '#3860A0', brest: '#4888B8',
+  bordeaux: '#B08050', lyon: '#6888A8', marseille: '#D08050',
+  clermont: '#607098', perpignan: '#C07838',
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function getStructureColor(wallLayers: { material: string }[]): string {
-  const structLayer = wallLayers.find(l =>
-    MATERIALS_DB[l.material]?.category === 'structure' ||
-    MATERIALS_DB[l.material]?.category === 'maconnerie'
-  );
-  return STRUCTURE_COLORS[structLayer?.material ?? ''] ?? STRUCTURE_COLORS.default;
-}
+// ─── Isometric math ──────────────────────────────────────────────────────────
+const COS30 = Math.cos(Math.PI / 6);
+const SIN30 = 0.5;
 
-function getInsulColor(wallLayers: { material: string }[]): string {
-  const insulLayer = wallLayers.find(l =>
-    ['isolant', 'isolant_bio'].includes(MATERIALS_DB[l.material]?.category ?? '')
-  );
-  return INSUL_COLORS[insulLayer?.material ?? ''] ?? INSUL_COLORS.default;
-}
-
-// ─── Paramètres SVG ───────────────────────────────────────────────────────────
 const VB_W = 380;
 const VB_H = 500;
-const BLD_X = 60;       // left edge du bâtiment
-const BLD_W = 260;      // width totale du bâtiment
-const GROUND_Y = 440;   // y du sol
-const MAX_H = 360;      // hauteur max du bâtiment en px
-const MIN_FLOOR_H = 28;
-const MAX_FLOOR_H = 72;
 
-// ─── Composant principal ──────────────────────────────────────────────────────
+function darken(hex: string, amt: number): string {
+  const n = parseInt(hex.replace('#','').padEnd(6,'0'), 16);
+  const r = Math.max(0, ((n>>16)&0xff) - Math.round(255*amt));
+  const g = Math.max(0, ((n>>8) &0xff) - Math.round(255*amt));
+  const b = Math.max(0,  (n     &0xff) - Math.round(255*amt));
+  return `#${((r<<16)|(g<<8)|b).toString(16).padStart(6,'0')}`;
+}
+
+function pts(...coords: [number,number][]): string {
+  return coords.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 interface Props { scrollProgress: MotionValue<number> }
 
 export function BuildingIllustration({ scrollProgress }: Props) {
   const { config } = useBuildingStore();
   const { geometry, wallLayers, windows, roof, insulationPosition, terrain } = config;
-  const { nFloors } = geometry;
 
-  // Couleurs dynamiques
-  const structColor = getStructureColor(wallLayers);
-  const insulColor  = getInsulColor(wallLayers);
-  const roofStyle   = ROOF_COLORS[roof.type] ?? ROOF_COLORS.flat_concrete;
-  const skyColor    = CITY_COLORS[terrain.climateCity] ?? '#6080A8';
-  const hasInsul    = insulationPosition !== 'AUCUNE';
+  // ── Material colors from store ──
+  const structLayer = wallLayers.find(l =>
+    ['structure','maconnerie'].includes(MATERIALS_DB[l.material]?.category ?? ''));
+  const insulLayer = wallLayers.find(l =>
+    ['isolant','isolant_bio'].includes(MATERIALS_DB[l.material]?.category ?? ''));
 
-  // Dimensions SVG du bâtiment
-  const floorH = Math.min(MAX_FLOOR_H, Math.max(MIN_FLOOR_H, MAX_H / nFloors));
-  const bldH   = floorH * nFloors;
-  const bldY   = GROUND_Y - bldH;
-  const insulW = hasInsul ? 10 : 0;
+  const [frontCol, rightCol, topCol] =
+    STRUCT_COLORS[structLayer?.material ?? ''] ?? STRUCT_COLORS.default;
+  const insulColor = INSUL_COLORS[insulLayer?.material ?? ''] ?? INSUL_COLORS.default;
+  const roofFill   = ROOF_FILLS[roof.type] ?? ROOF_FILLS.flat_concrete;
+  const hasInsul   = insulationPosition !== 'AUCUNE';
+  const skyColor   = CITY_SKY[terrain.climateCity] ?? '#4870A0';
 
-  // Springs pour les couleurs (smooth transitions)
-  const sp = { stiffness: 80, damping: 20 };
+  // ── Compute scale from building dimensions ──
+  const bW  = geometry.length;
+  const bD  = geometry.width;
+  const bH  = geometry.nFloors * geometry.floorHeight;
+  const bFH = geometry.floorHeight;
+  const NF  = geometry.nFloors;
 
-  // Scroll → opacity de chaque section (7 phases)
-  const phase = (a: number, b: number) =>
-    useTransform(scrollProgress, [a, a + 0.04, b - 0.04, b], [0, 1, 1, 0]);
+  const PAD = 36;
+  const availW = VB_W - PAD * 2;
+  const availH = VB_H - PAD * 2 - 60; // leave room for labels
 
-  const wallOpacity   = useSpring(useTransform(scrollProgress, [0,   0.05], [0, 1]), sp);
-  const winOpacity    = useSpring(useTransform(scrollProgress, [0.12, 0.18], [0, 1]), sp);
-  const insulOpacity  = useSpring(useTransform(scrollProgress, [0.26, 0.32], [0, 1]), sp);
-  const roofOpacity   = useSpring(useTransform(scrollProgress, [0.40, 0.46], [0, 1]), sp);
-  const ventilOpacity = useSpring(useTransform(scrollProgress, [0.54, 0.60], [0, 1]), sp);
-  const hvacOpacity   = useSpring(useTransform(scrollProgress, [0.68, 0.74], [0, 1]), sp);
-  const glowOpacity   = useSpring(useTransform(scrollProgress, [0.84, 0.92], [0, 1]), sp);
+  const scaleW = availW / ((bW + bD) * COS30);
+  const scaleH = availH / (bH + (bW + bD) * SIN30);
+  const scale  = Math.min(scaleW, scaleH) * 0.88;
 
-  // Insulation scaleX (enveloppe les murs)
-  const insulScale = useSpring(
-    useTransform(scrollProgress, [0.26, 0.36], [0, 1]),
-    { stiffness: 100, damping: 22 }
-  );
+  const W  = bW  * scale;
+  const D  = bD  * scale;
+  const H  = bH  * scale;
+  const FH = bFH * scale;
 
-  // Roof translateY (tombe du ciel)
-  const roofY = useSpring(
-    useTransform(scrollProgress, [0.40, 0.50], [-60, 0]),
-    { stiffness: 140, damping: 18, restDelta: 0.01 }
-  );
+  const insulThickPx = hasInsul
+    ? Math.max(5, (insulLayer?.thickness ?? 0.1) * scale * 1.8)
+    : 0;
 
-  // Foundation opacity
-  const foundOpacity = useSpring(
-    useTransform(scrollProgress, [0, 0.03], [0, 1]),
-    { stiffness: 120, damping: 18 }
-  );
+  // ── Origin: bottom-front-left corner ──
+  const screenW = (W + D) * COS30;
+  const screenH = H + (W + D) * SIN30;
+  const OX = PAD + D * COS30 + (availW - screenW) / 2;
+  const OY = PAD + H + (availH - screenH) / 2 + (W + D) * SIN30;
 
-  // Window positions (simplified)
-  const winCount = Math.max(1, Math.round(BLD_W * (windows.ratioSouth ?? 0.4) / 40));
-  const winW = 28;
-  const winH = Math.min(floorH * 0.6, 40);
-  const winPositions = useMemo(() => {
-    const spacing = BLD_W / (winCount + 1);
-    return Array.from({ length: nFloors }, (_, f) =>
-      Array.from({ length: winCount }, (_, w) => ({
-        x: BLD_X + spacing * (w + 1) - winW / 2,
-        y: bldY + f * floorH + (floorH - winH) * 0.4,
+  function iso(x: number, y: number, z: number): [number, number] {
+    return [OX + (x - z) * COS30, OY - y + (x + z) * SIN30];
+  }
+
+  // ── Windows ──
+  const WIN_W_M = 1.4;
+  const WIN_H_M = Math.min(bFH * 0.55, 1.8);
+  const winW = WIN_W_M * scale;
+  const winH = WIN_H_M * scale;
+
+  const nWinFront = Math.max(1, Math.round(bW * (windows.ratioSouth ?? 0.4) / WIN_W_M));
+  const nWinRight = Math.max(1, Math.round(bD * (windows.ratioEast  ?? 0.15) / WIN_W_M));
+
+  const frontWins = useMemo(() => {
+    const sp = W / (nWinFront + 1);
+    return Array.from({ length: NF }, (_, f) =>
+      Array.from({ length: nWinFront }, (_, i) => ({
+        x: sp * (i + 1) - winW / 2,
+        y: f * FH + (FH - winH) * 0.4,
       }))
     ).flat();
-  }, [winCount, nFloors, floorH, bldY]);
+  }, [W, FH, NF, nWinFront, winW, winH]);
+
+  const rightWins = useMemo(() => {
+    const sp = D / (nWinRight + 1);
+    return Array.from({ length: NF }, (_, f) =>
+      Array.from({ length: nWinRight }, (_, i) => ({
+        z: sp * (i + 1) - winW / 2,
+        y: f * FH + (FH - winH) * 0.4,
+      }))
+    ).flat();
+  }, [D, FH, NF, nWinRight, winW, winH]);
+
+  // ── Scroll → which section is active (0-6) ──
+  // Section 0=Geometry, 1=Glazing, 2=Insulation, 3=Roof, 4=Ventilation, 5=HVAC, 6=Results
+  const activeSection = useTransform(scrollProgress, v => Math.min(6, Math.floor(v * 7)));
+
+  // Glow highlight per component (1 = highlighted, 0 = normal)
+  const spGlow = { stiffness: 80, damping: 18 };
+
+  const wallGlow    = useSpring(useTransform(activeSection, v => v === 0 ? 1 : 0.4), spGlow);
+  const winGlow     = useSpring(useTransform(activeSection, v => v === 1 ? 1 : 0.4), spGlow);
+  const insulGlow   = useSpring(useTransform(activeSection, v => v === 2 ? 1 : 0.4), spGlow);
+  const roofGlow    = useSpring(useTransform(activeSection, v => v === 3 ? 1 : 0.4), spGlow);
+  const systemsGlow = useSpring(useTransform(activeSection, v => v === 4 || v === 5 ? 1 : 0.4), spGlow);
+
+  // Glow stroke opacity (only for active section)
+  const wallGlowStroke    = useTransform(activeSection, v => v === 0 ? 0.9 : 0);
+  const winGlowStroke     = useTransform(activeSection, v => v === 1 ? 0.9 : 0);
+  const insulGlowStroke   = useTransform(activeSection, v => v === 2 ? 0.9 : 0);
+  const roofGlowStroke    = useTransform(activeSection, v => v === 3 ? 0.9 : 0);
+
+  // ── Dimension lines ──
+  const [dimBL]  = [iso(0,0,0)];
+  const [dimBR]  = [iso(W,0,0)];
+  const [dimBRD] = [iso(W,0,D)];
+  const [dimTL]  = [iso(0,H,0)];
 
   return (
-    <svg
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      width="100%"
-      height="100%"
-      style={{ overflow: 'visible' }}
-      aria-label="Building illustration"
-    >
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" height="100%"
+      style={{ overflow: 'visible' }} aria-label="Isometric building illustration">
       <defs>
-        {/* Gradient fond de ciel */}
         <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={skyColor} stopOpacity="0.25" />
+          <stop offset="0%" stopColor={skyColor} stopOpacity="0.2" />
           <stop offset="100%" stopColor={skyColor} stopOpacity="0" />
         </linearGradient>
-
-        {/* Gradient mur */}
-        <linearGradient id="wallGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={structColor} stopOpacity="1" />
-          <stop offset="100%" stopColor={structColor} stopOpacity="0.85" />
-        </linearGradient>
-
-        {/* Gradient isolant */}
-        <linearGradient id="insulGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={insulColor} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={insulColor} stopOpacity="0.7" />
-        </linearGradient>
-
-        {/* Gradient verre */}
         <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={GLASS_SHIMMER} />
-          <stop offset="50%" stopColor={GLASS_COLOR} />
-          <stop offset="100%" stopColor={GLASS_SHIMMER} />
+          <stop offset="0%"   stopColor="rgba(180,220,255,0.25)" />
+          <stop offset="50%"  stopColor="rgba(100,180,230,0.6)" />
+          <stop offset="100%" stopColor="rgba(180,220,255,0.15)" />
         </linearGradient>
-
-        {/* Glow filter */}
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        <filter id="subtleGlow">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        <filter id="softGlow" x="-15%" y="-15%" width="130%" height="130%">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-
-        {/* Clip pour isolant gauche */}
-        <clipPath id="insulLeft">
-          <rect x={BLD_X - insulW - 2} y={bldY} width={insulW + 2} height={bldH} />
-        </clipPath>
-        {/* Clip pour isolant droite */}
-        <clipPath id="insulRight">
-          <rect x={BLD_X + BLD_W} y={bldY} width={insulW + 2} height={bldH} />
-        </clipPath>
       </defs>
 
-      {/* ── Fond ciel dégradé (lié au climat) ── */}
-      <rect x="0" y="0" width={VB_W} height={GROUND_Y} fill="url(#skyGrad)" />
+      {/* Sky */}
+      <rect x="0" y="0" width={VB_W} height={VB_H} fill="url(#skyGrad)" />
 
-      {/* ── Sol ── */}
-      <motion.rect
-        x="0" y={GROUND_Y} width={VB_W} height={VB_H - GROUND_Y}
-        fill="#1A1F28"
-        style={{ opacity: foundOpacity }}
-      />
-      <motion.line
-        x1="0" y1={GROUND_Y} x2={VB_W} y2={GROUND_Y}
-        stroke="#2A4060" strokeWidth="1"
-        style={{ opacity: foundOpacity }}
+      {/* Ground shadow */}
+      <ellipse
+        cx={OX + (W - D) * COS30 / 2}
+        cy={OY + (W + D) * SIN30 * 0.55}
+        rx={(W + D) * COS30 * 0.5}
+        ry={(W + D) * SIN30 * 0.25}
+        fill="rgba(0,0,0,0.18)"
       />
 
-      {/* ── Foundation ── */}
-      <motion.rect
-        x={BLD_X - 8} y={GROUND_Y - 10} width={BLD_W + 16} height={12}
-        fill="#2A2826"
-        rx="1"
-        style={{ opacity: foundOpacity }}
+      {/* Ground plane */}
+      <polygon
+        points={pts(iso(0,0,0), iso(W,0,0), iso(W,0,D), iso(0,0,D))}
+        fill="#1A2030" stroke="#2A3040" strokeWidth="0.6"
       />
 
-      {/* ── MURS — par étage (stagger) ── */}
-      <motion.g style={{ opacity: wallOpacity }}>
-        {Array.from({ length: nFloors }, (_, f) => {
-          const fy = bldY + f * floorH;
-          const delayOffset = (nFloors - 1 - f) * 0.06; // bottom→top
+      {/* ── WALLS ── */}
+      <motion.g style={{ opacity: wallGlow }}>
+        {/* Right face (East) */}
+        <polygon
+          points={pts(iso(W,0,0), iso(W,0,D), iso(W,H,D), iso(W,H,0))}
+          fill={rightCol} stroke="#0A0D12" strokeWidth="0.8"
+        />
+        {/* Front face (South) */}
+        <polygon
+          points={pts(iso(0,0,0), iso(W,0,0), iso(W,H,0), iso(0,H,0))}
+          fill={frontCol} stroke="#0A0D12" strokeWidth="0.8"
+        />
+
+        {/* Floor lines — front */}
+        {Array.from({ length: NF - 1 }, (_, f) => {
+          const fy = (f + 1) * FH;
           return (
-            <motion.g
-              key={f}
-              initial={{ scaleY: 0, originY: GROUND_Y }}
-              animate={{ scaleY: 1 }}
-              transition={{ delay: delayOffset, type: 'spring', stiffness: 160, damping: 20 }}
-              style={{ transformOrigin: `${BLD_X + BLD_W / 2}px ${GROUND_Y}px` }}
-            >
-              {/* Corps du mur */}
-              <rect
-                x={BLD_X} y={fy}
-                width={BLD_W} height={floorH}
-                fill="url(#wallGrad)"
-              />
-              {/* Reflet subtil haut du mur */}
-              <rect
-                x={BLD_X} y={fy}
-                width={BLD_W} height={3}
-                fill="rgba(255,255,255,0.12)"
-              />
-              {/* Séparation inter-étage */}
-              {f > 0 && (
-                <line
-                  x1={BLD_X} y1={fy} x2={BLD_X + BLD_W} y2={fy}
-                  stroke="rgba(0,0,0,0.25)" strokeWidth="1.5"
-                />
-              )}
-            </motion.g>
+            <line key={`ff${f}`}
+              x1={iso(0,fy,0)[0]} y1={iso(0,fy,0)[1]}
+              x2={iso(W,fy,0)[0]} y2={iso(W,fy,0)[1]}
+              stroke={darken(frontCol, 0.15)} strokeWidth="0.8" strokeDasharray="3 2"
+            />
           );
         })}
-        {/* Contour général du bâtiment */}
-        <rect
-          x={BLD_X} y={bldY}
-          width={BLD_W} height={bldH}
-          fill="none"
-          stroke="#1A1F28" strokeWidth="1.5"
+        {/* Floor lines — right */}
+        {Array.from({ length: NF - 1 }, (_, f) => {
+          const fy = (f + 1) * FH;
+          return (
+            <line key={`rf${f}`}
+              x1={iso(W,fy,0)[0]} y1={iso(W,fy,0)[1]}
+              x2={iso(W,fy,D)[0]} y2={iso(W,fy,D)[1]}
+              stroke={darken(rightCol, 0.12)} strokeWidth="0.8" strokeDasharray="3 2"
+            />
+          );
+        })}
+
+        {/* Edge highlights */}
+        <line x1={iso(0,0,0)[0]} y1={iso(0,0,0)[1]} x2={iso(0,H,0)[0]} y2={iso(0,H,0)[1]}
+          stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" />
+        <line x1={iso(0,H,0)[0]} y1={iso(0,H,0)[1]} x2={iso(W,H,0)[0]} y2={iso(W,H,0)[1]}
+          stroke="rgba(255,255,255,0.14)" strokeWidth="1" />
+
+        {/* Active glow outline for geometry section */}
+        <motion.polygon
+          points={pts(iso(0,0,0), iso(W,0,0), iso(W,H,0), iso(0,H,0))}
+          fill="none" stroke="#4A7FA8" strokeWidth="2"
+          filter="url(#glow)"
+          style={{ opacity: wallGlowStroke }}
         />
-        {/* Coins brillants — effet architectural */}
-        <line x1={BLD_X} y1={bldY} x2={BLD_X} y2={GROUND_Y}
-          stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-        <line x1={BLD_X + BLD_W} y1={bldY} x2={BLD_X + BLD_W} y2={GROUND_Y}
-          stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+        <motion.polygon
+          points={pts(iso(W,0,0), iso(W,0,D), iso(W,H,D), iso(W,H,0))}
+          fill="none" stroke="#4A7FA8" strokeWidth="2"
+          filter="url(#glow)"
+          style={{ opacity: wallGlowStroke }}
+        />
       </motion.g>
 
-      {/* ── ISOLATION ── */}
+      {/* ── INSULATION ── */}
       {hasInsul && (
-        <motion.g style={{ opacity: insulOpacity }}>
+        <motion.g style={{ opacity: insulGlow }}>
           {insulationPosition === 'ITE' ? (
             <>
-              {/* ITE : couche extérieure */}
-              <motion.rect
-                x={BLD_X - insulW} y={bldY}
-                width={insulW} height={bldH}
-                fill="url(#insulGrad)"
-                style={{ scaleX: insulScale, transformOrigin: `${BLD_X}px center` }}
+              {/* Exterior insulation — left strip on front */}
+              <polygon
+                points={pts(
+                  iso(-insulThickPx/scale, 0, 0),
+                  iso(0, 0, 0),
+                  iso(0, H, 0),
+                  iso(-insulThickPx/scale, H, 0)
+                )}
+                fill={insulColor}
+                stroke={darken(insulColor, 0.1)}
+                strokeWidth="0.6"
               />
-              <motion.rect
-                x={BLD_X + BLD_W} y={bldY}
-                width={insulW} height={bldH}
-                fill="url(#insulGrad)"
-                style={{ scaleX: insulScale, transformOrigin: `${BLD_X + BLD_W}px center` }}
+              {/* Exterior insulation — right strip on right face */}
+              <polygon
+                points={pts(
+                  iso(W, 0, D),
+                  iso(W, 0, D + insulThickPx/scale),
+                  iso(W, H, D + insulThickPx/scale),
+                  iso(W, H, D)
+                )}
+                fill={darken(insulColor, 0.08)}
+                stroke={darken(insulColor, 0.15)}
+                strokeWidth="0.6"
               />
+              <text
+                x={iso(-insulThickPx/scale - 3, H * 0.6, 0)[0]}
+                y={iso(-insulThickPx/scale - 3, H * 0.6, 0)[1]}
+                fontSize="7" fill={insulColor} textAnchor="end"
+                fontFamily="var(--font-mono)" fontWeight="600">
+                ITE
+              </text>
             </>
           ) : (
-            <>
-              {/* ITI : couche intérieure */}
-              <motion.rect
-                x={BLD_X + 2} y={bldY + 2}
-                width={insulW - 2} height={bldH - 4}
-                fill="url(#insulGrad)"
-                style={{ scaleX: insulScale, transformOrigin: `${BLD_X + 2}px center` }}
-              />
-              <motion.rect
-                x={BLD_X + BLD_W - insulW} y={bldY + 2}
-                width={insulW - 2} height={bldH - 4}
-                fill="url(#insulGrad)"
-                style={{ scaleX: insulScale, transformOrigin: `${BLD_X + BLD_W}px center` }}
-              />
-            </>
+            <polygon
+              points={pts(
+                iso(0, 0, 0),
+                iso(insulThickPx/scale, 0, 0),
+                iso(insulThickPx/scale, H, 0),
+                iso(0, H, 0)
+              )}
+              fill={insulColor}
+              stroke={darken(insulColor, 0.1)}
+              strokeWidth="0.6"
+              opacity="0.9"
+            />
           )}
-          {/* Label isolant */}
-          <motion.text
-            x={insulationPosition === 'ITE' ? BLD_X - insulW - 4 : BLD_X + 4}
-            y={bldY + bldH / 2}
-            fontSize="7"
-            fill={insulColor}
-            textAnchor="end"
-            dominantBaseline="middle"
-            fontFamily="var(--font-mono)"
-            letterSpacing="0.05em"
-            style={{ opacity: insulOpacity }}
-          >
-            {insulationPosition}
-          </motion.text>
+          {/* Insulation glow */}
+          <motion.polygon
+            points={hasInsul && insulationPosition === 'ITE'
+              ? pts(iso(-insulThickPx/scale,0,0), iso(0,0,0), iso(0,H,0), iso(-insulThickPx/scale,H,0))
+              : pts(iso(0,0,0), iso(insulThickPx/scale,0,0), iso(insulThickPx/scale,H,0), iso(0,H,0))
+            }
+            fill="none" stroke={insulColor} strokeWidth="2"
+            filter="url(#softGlow)"
+            style={{ opacity: insulGlowStroke }}
+          />
         </motion.g>
       )}
 
-      {/* ── FENÊTRES ── */}
-      <motion.g style={{ opacity: winOpacity }}>
-        {winPositions.map((w, i) => (
-          <motion.g
-            key={i}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: i * 0.04, type: 'spring', stiffness: 200, damping: 24 }}
-            style={{ transformOrigin: `${w.x + winW / 2}px ${w.y + winH / 2}px` }}
-          >
-            {/* Cadre aluminium */}
-            <rect x={w.x - 1} y={w.y - 1} width={winW + 2} height={winH + 2}
-              fill="#2C3040" rx="1" />
-            {/* Vitrage */}
-            <rect x={w.x} y={w.y} width={winW} height={winH}
-              fill="url(#glassGrad)" />
-            {/* Reflet diagonal */}
-            <line
-              x1={w.x + 4} y1={w.y + 3}
-              x2={w.x + winW * 0.45} y2={w.y + winH * 0.6}
-              stroke="rgba(255,255,255,0.35)" strokeWidth="1.5"
+      {/* ── WINDOWS — Front face ── */}
+      <motion.g style={{ opacity: winGlow }}>
+        {frontWins.map((w, i) => {
+          const [x0,y0] = iso(w.x,        w.y,       0);
+          const [x1,y1] = iso(w.x + winW, w.y,       0);
+          const [x2,y2] = iso(w.x + winW, w.y + winH,0);
+          const [x3,y3] = iso(w.x,        w.y + winH,0);
+          const mx = (x0+x1+x2+x3)/4, my = (y0+y1+y2+y3)/4;
+          return (
+            <g key={`fw${i}`}>
+              <polygon points={pts([x0,y0],[x1,y1],[x2,y2],[x3,y3])}
+                fill="#252A35" stroke="#0A0D12" strokeWidth="0.8" />
+              <polygon points={pts([x0+2,y0+1],[x1-2,y1+1],[x2-2,y2-1],[x3+2,y3-1])}
+                fill="url(#glassGrad)" />
+              <line x1={x0+3} y1={y0+2} x2={mx-3} y2={my}
+                stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" strokeLinecap="round" />
+            </g>
+          );
+        })}
+        {/* Window glow overlay when glazing section is active */}
+        {frontWins.map((w, i) => {
+          const [x0,y0] = iso(w.x,        w.y,       0);
+          const [x1,y1] = iso(w.x + winW, w.y,       0);
+          const [x2,y2] = iso(w.x + winW, w.y + winH,0);
+          const [x3,y3] = iso(w.x,        w.y + winH,0);
+          return (
+            <motion.polygon key={`fwg${i}`}
+              points={pts([x0,y0],[x1,y1],[x2,y2],[x3,y3])}
+              fill="none" stroke="#0B7A63" strokeWidth="2"
+              filter="url(#softGlow)"
+              style={{ opacity: winGlowStroke }}
             />
-            {/* Meneau central */}
-            <line
-              x1={w.x + winW / 2} y1={w.y}
-              x2={w.x + winW / 2} y2={w.y + winH}
-              stroke="rgba(40,50,65,0.8)" strokeWidth="1"
-            />
-          </motion.g>
-        ))}
+          );
+        })}
       </motion.g>
 
-      {/* ── TOITURE ── */}
-      <motion.g style={{ opacity: roofOpacity, y: roofY }}>
+      {/* ── WINDOWS — Right face ── */}
+      <motion.g style={{ opacity: winGlow }}>
+        {rightWins.map((w, i) => {
+          const [x0,y0] = iso(W, w.y,       w.z);
+          const [x1,y1] = iso(W, w.y,       w.z + winW);
+          const [x2,y2] = iso(W, w.y + winH,w.z + winW);
+          const [x3,y3] = iso(W, w.y + winH,w.z);
+          return (
+            <g key={`rw${i}`}>
+              <polygon points={pts([x0,y0],[x1,y1],[x2,y2],[x3,y3])}
+                fill="#252A35" stroke="#0A0D12" strokeWidth="0.8" />
+              <polygon points={pts([x0-1,y0+1],[x1+1,y1+1],[x2+1,y2-1],[x3-1,y3-1])}
+                fill="url(#glassGrad)" />
+            </g>
+          );
+        })}
+      </motion.g>
+
+      {/* ── ROOF ── */}
+      <motion.g style={{ opacity: roofGlow }}>
         {roof.type === 'inclined_tiles' ? (
           <>
             <polygon
-              points={`${BLD_X - 8},${bldY} ${BLD_X + BLD_W / 2},${bldY - 55} ${BLD_X + BLD_W + 8},${bldY}`}
-              fill={roofStyle.fill}
-            />
+              points={pts(iso(0,H,0), iso(W,H,0), iso(W/2, H + D*0.4, D/2))}
+              fill={roofFill.front} stroke="#0A0D12" strokeWidth="0.8" />
             <polygon
-              points={`${BLD_X - 8},${bldY} ${BLD_X + BLD_W / 2},${bldY - 55} ${BLD_X + BLD_W + 8},${bldY}`}
-              fill="none"
-              stroke="#1A1F28" strokeWidth="1.5"
-            />
-            {/* Tuiles */}
-            {Array.from({ length: 6 }, (_, i) => (
-              <line key={i}
-                x1={BLD_X - 8 + (BLD_W + 16) * i / 6}
-                y1={bldY}
-                x2={BLD_X + BLD_W / 2}
-                y2={bldY - 55}
-                stroke={roofStyle.accent} strokeWidth="1" strokeOpacity="0.5"
-              />
-            ))}
+              points={pts(iso(W,H,0), iso(W,H,D), iso(W/2, H + D*0.4, D/2))}
+              fill={roofFill.right} stroke="#0A0D12" strokeWidth="0.8" />
           </>
         ) : roof.type === 'green' ? (
           <>
-            <rect x={BLD_X - 6} y={bldY - 16} width={BLD_W + 12} height={16}
-              fill={roofStyle.fill} rx="2" />
-            <rect x={BLD_X - 6} y={bldY - 22} width={BLD_W + 12} height={6}
-              fill={roofStyle.accent} rx="1" />
-            {/* Végétation stylisée */}
-            {Array.from({ length: 8 }, (_, i) => (
-              <ellipse key={i}
-                cx={BLD_X + 16 + i * 32}
-                cy={bldY - 22}
-                rx={10} ry={6}
-                fill="#3A7A3A" opacity="0.8"
-              />
-            ))}
+            <polygon
+              points={pts(iso(0,H,0), iso(W,H,0), iso(W,H,D), iso(0,H,D))}
+              fill={roofFill.top} stroke="#0A0D12" strokeWidth="0.8" />
+            {Array.from({ length: 5 }, (_, i) => {
+              const [ex, ey] = iso((i + 0.5) * W / 5, H + 0.4, D * 0.4);
+              return <ellipse key={i} cx={ex} cy={ey}
+                rx={W * 0.055} ry={W * 0.03}
+                fill="#5AB05A" opacity="0.88" />;
+            })}
+            {/* Green parapet */}
+            <polygon
+              points={pts(iso(0,H,0), iso(W,H,0), iso(W,H+0.25,0), iso(0,H+0.25,0))}
+              fill={roofFill.front} stroke="#0A0D12" strokeWidth="0.8" />
           </>
         ) : (
           <>
-            {/* Toiture plate */}
-            <rect x={BLD_X - 6} y={bldY - 12} width={BLD_W + 12} height={14}
-              fill={roofStyle.fill} />
-            <rect x={BLD_X - 6} y={bldY - 14} width={BLD_W + 12} height={4}
-              fill={roofStyle.accent} />
-            <rect x={BLD_X - 6} y={bldY - 14} width={BLD_W + 12} height={14}
-              fill="none" stroke="#1A1F28" strokeWidth="1.2" />
-            {/* Détail acrotère */}
-            <rect x={BLD_X - 8} y={bldY - 18} width={6} height={8}
-              fill={roofStyle.fill} stroke="#1A1F28" strokeWidth="1" />
-            <rect x={BLD_X + BLD_W + 2} y={bldY - 18} width={6} height={8}
-              fill={roofStyle.fill} stroke="#1A1F28" strokeWidth="1" />
+            {/* Flat roof — top face */}
+            <polygon
+              points={pts(iso(0,H,0), iso(W,H,0), iso(W,H,D), iso(0,H,D))}
+              fill={roof.type === 'cool_roof' ? '#D0D8E0' : topCol}
+              stroke="#0A0D12" strokeWidth="0.8" />
+            {/* Cool roof sheen */}
+            {roof.type === 'cool_roof' && (
+              <polygon
+                points={pts(iso(0,H,0), iso(W,H,0), iso(W,H,D), iso(0,H,D))}
+                fill="rgba(200,220,255,0.4)" />
+            )}
+            {/* Parapet front */}
+            <polygon
+              points={pts(iso(0,H,0), iso(W,H,0), iso(W,H+0.2,0), iso(0,H+0.2,0))}
+              fill={darken(frontCol, 0.04)} stroke="#0A0D12" strokeWidth="0.8" />
+            {/* Parapet right */}
+            <polygon
+              points={pts(iso(W,H,0), iso(W,H,D), iso(W,H+0.2,D), iso(W,H+0.2,0))}
+              fill={darken(rightCol, 0.04)} stroke="#0A0D12" strokeWidth="0.8" />
           </>
         )}
-      </motion.g>
-
-      {/* ── VENTILATION — lignes d'airflow ── */}
-      <motion.g style={{ opacity: ventilOpacity }}>
-        {[0.25, 0.5, 0.75].map((pct, i) => (
-          <motion.path
-            key={i}
-            d={`M ${BLD_X + BLD_W * pct} ${bldY + 20 + i * 30}
-                C ${BLD_X + BLD_W * pct + 20} ${bldY + 30 + i * 30}
-                  ${BLD_X + BLD_W * pct + 20} ${bldY + 50 + i * 30}
-                  ${BLD_X + BLD_W * pct} ${bldY + 60 + i * 30}`}
-            stroke="#0B7A63"
-            strokeWidth="1.5"
-            fill="none"
-            strokeDasharray="4 3"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 0.7 }}
-            transition={{ delay: 0.1 * i, duration: 1.2, ease: 'easeInOut' }}
-          />
-        ))}
-        {/* Flèches de ventilation */}
-        <motion.text x={BLD_X + BLD_W / 2 - 25} y={bldY + bldH / 2}
-          fontSize="8" fill="#0B7A63" fontFamily="var(--font-mono)"
-          style={{ opacity: ventilOpacity }}>
-          HRV ↕
-        </motion.text>
-      </motion.g>
-
-      {/* ── HVAC overlay ── */}
-      <motion.g style={{ opacity: hvacOpacity }}>
-        {/* Unité extérieure PAC */}
-        <rect x={BLD_X + BLD_W + 16} y={GROUND_Y - 32}
-          width={28} height={30} fill="#3A4050" rx="3"
-          stroke="#4A7FA8" strokeWidth="1" />
-        <text x={BLD_X + BLD_W + 30} y={GROUND_Y - 16}
-          fontSize="7" fill="#4A7FA8" textAnchor="middle"
-          fontFamily="var(--font-mono)">HP</text>
-        {/* Liaison frigorifique */}
-        <motion.path
-          d={`M ${BLD_X + BLD_W} ${bldY + bldH * 0.7} L ${BLD_X + BLD_W + 16} ${GROUND_Y - 18}`}
-          stroke="#4A7FA8" strokeWidth="1" strokeDasharray="3 2"
-          fill="none"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.8 }}
+        {/* Roof glow */}
+        <motion.polygon
+          points={pts(iso(0,H,0), iso(W,H,0), iso(W,H,D), iso(0,H,D))}
+          fill="none" stroke="#8B4030" strokeWidth="2"
+          filter="url(#softGlow)"
+          style={{ opacity: roofGlowStroke }}
         />
       </motion.g>
 
-      {/* ── GLOW FINAL — résultat ── */}
-      <motion.g style={{ opacity: glowOpacity }}>
-        <rect
-          x={BLD_X - insulW} y={bldY - 20}
-          width={BLD_W + insulW * 2} height={bldH + 20}
-          fill="none"
-          stroke="#4A7FA8"
-          strokeWidth="2"
-          filter="url(#glow)"
-          rx="2"
-        />
+      {/* ── VENTILATION airflow (sections 4+5) ── */}
+      <motion.g style={{ opacity: systemsGlow }}>
+        {[0.28, 0.58].map((pct, i) => {
+          const [ax, ay] = iso(W * pct, H * 0.55, 0);
+          return (
+            <motion.path key={i}
+              d={`M ${ax} ${ay-8} C ${ax+7} ${ay-4} ${ax+7} ${ay+4} ${ax} ${ay+8}`}
+              stroke="#0B7A63" strokeWidth="1.2" fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 0.7 }}
+              transition={{ duration: 1.2, delay: i * 0.4, ease: 'easeInOut',
+                repeat: Infinity, repeatDelay: 2, repeatType: 'loop' }}
+            />
+          );
+        })}
       </motion.g>
 
-      {/* ── DIMENSIONS — lignes de cote ── */}
-      <motion.g style={{ opacity: wallOpacity }} fill="none">
-        {/* Cote hauteur */}
-        <line x1={BLD_X - 22} y1={bldY} x2={BLD_X - 22} y2={GROUND_Y}
-          stroke="#4A7FA8" strokeWidth="0.8" strokeDasharray="2 2" />
-        <line x1={BLD_X - 26} y1={bldY} x2={BLD_X - 18} y2={bldY}
-          stroke="#4A7FA8" strokeWidth="0.8" />
-        <line x1={BLD_X - 26} y1={GROUND_Y} x2={BLD_X - 18} y2={GROUND_Y}
-          stroke="#4A7FA8" strokeWidth="0.8" />
-        <text x={BLD_X - 36} y={bldY + bldH / 2}
-          fontSize="7" fill="#4A7FA8" textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          transform={`rotate(-90, ${BLD_X - 36}, ${bldY + bldH / 2})`}>
-          {(geometry.nFloors * geometry.floorHeight).toFixed(1)}m
+      {/* ── DIMENSION LABELS ── */}
+      <g fill="none">
+        {/* Width label (front bottom) */}
+        <line x1={dimBL[0]} y1={dimBL[1]+8} x2={dimBR[0]} y2={dimBR[1]+8}
+          stroke="#4A7FA8" strokeWidth="0.6" strokeDasharray="2 2" />
+        <line x1={dimBL[0]} y1={dimBL[1]+5} x2={dimBL[0]} y2={dimBL[1]+11}
+          stroke="#4A7FA8" strokeWidth="0.6" />
+        <line x1={dimBR[0]} y1={dimBR[1]+5} x2={dimBR[0]} y2={dimBR[1]+11}
+          stroke="#4A7FA8" strokeWidth="0.6" />
+        <text x={(dimBL[0]+dimBR[0])/2} y={(dimBL[1]+dimBR[1])/2+18}
+          fontSize="8" fill="#4A7FA8" textAnchor="middle" fontFamily="var(--font-mono)">
+          {bW.toFixed(1)}m
         </text>
 
-        {/* Cote largeur */}
-        <line x1={BLD_X} y1={GROUND_Y + 20} x2={BLD_X + BLD_W} y2={GROUND_Y + 20}
-          stroke="#4A7FA8" strokeWidth="0.8" strokeDasharray="2 2" />
-        <text x={BLD_X + BLD_W / 2} y={GROUND_Y + 32}
-          fontSize="7" fill="#4A7FA8" textAnchor="middle"
-          fontFamily="var(--font-mono)">
-          {geometry.length.toFixed(1)}m × {geometry.width.toFixed(1)}m
+        {/* Depth label (right bottom) */}
+        <line x1={dimBR[0]+5} y1={dimBR[1]} x2={dimBRD[0]+5} y2={dimBRD[1]}
+          stroke="#4A7FA8" strokeWidth="0.6" strokeDasharray="2 2" />
+        <text x={(dimBR[0]+dimBRD[0])/2+12} y={(dimBR[1]+dimBRD[1])/2+3}
+          fontSize="8" fill="#4A7FA8" textAnchor="start" fontFamily="var(--font-mono)">
+          {bD.toFixed(1)}m
         </text>
-      </motion.g>
+
+        {/* Height label (left edge) */}
+        <line x1={dimBL[0]-8} y1={dimBL[1]} x2={dimTL[0]-8} y2={dimTL[1]}
+          stroke="#4A7FA8" strokeWidth="0.6" strokeDasharray="2 2" />
+        <text
+          x={dimTL[0]-15} y={(dimBL[1]+dimTL[1])/2}
+          fontSize="8" fill="#4A7FA8" textAnchor="middle" fontFamily="var(--font-mono)"
+          transform={`rotate(-90,${dimTL[0]-15},${(dimBL[1]+dimTL[1])/2})`}>
+          {bH.toFixed(1)}m
+        </text>
+      </g>
     </svg>
   );
 }

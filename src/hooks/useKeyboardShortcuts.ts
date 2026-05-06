@@ -15,10 +15,8 @@ export function useKeyboardShortcuts() {
       switch (e.key) {
         case '1': setActiveView('configure'); break;
         case '2': setActiveView('facade'); break;
-        case '3': setActiveView('coupe'); break;
-        case '4': setActiveView('plan'); break;
-        case '5': setActiveView('analyse'); break;
-        case '6': setActiveView('charts'); break;
+        case '3': setActiveView('analyse'); break;
+        case '4': setActiveView('charts'); break;
         case 'x': case 'X': toggleSectionCut(); break;
         case 'e': case 'E': toggleExploded(); break;
         case 'd': case 'D': toggleDimensions(); break;

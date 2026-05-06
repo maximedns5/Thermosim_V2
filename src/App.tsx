@@ -17,8 +17,6 @@ import { HvacPerformance } from './components/charts/HvacPerformance';
 import { ScenarioRadar } from './components/charts/ScenarioRadar';
 
 const FacadeView  = lazy(() => import('./components/svg/FacadeView').then(m => ({ default: m.FacadeView })));
-const SectionView = lazy(() => import('./components/svg/SectionView').then(m => ({ default: m.SectionView })));
-const PlanView    = lazy(() => import('./components/svg/PlanView').then(m => ({ default: m.PlanView })));
 const AnalyseView = lazy(() => import('./components/views/AnalyseView').then(m => ({ default: m.AnalyseView })));
 
 const viewTransition = {
@@ -73,16 +71,6 @@ function ViewPane() {
         {activeView === 'facade' && (
           <m.div key="facade" {...viewTransition} className="absolute inset-0 overflow-auto p-4 bg-paper">
             <Suspense fallback={null}><FacadeView /></Suspense>
-          </m.div>
-        )}
-        {activeView === 'coupe' && (
-          <m.div key="coupe" {...viewTransition} className="absolute inset-0 overflow-auto p-4 bg-paper">
-            <Suspense fallback={null}><SectionView /></Suspense>
-          </m.div>
-        )}
-        {activeView === 'plan' && (
-          <m.div key="plan" {...viewTransition} className="absolute inset-0 overflow-auto p-4 bg-paper">
-            <Suspense fallback={null}><PlanView /></Suspense>
           </m.div>
         )}
         {activeView === 'analyse' && (

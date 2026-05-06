@@ -1,7 +1,7 @@
 // Store UI — navigation, panneaux, onglets
 import { create } from 'zustand';
 
-export type ViewMode = 'configure' | 'facade' | 'coupe' | 'plan' | 'analyse' | 'charts';
+export type ViewMode = 'configure' | 'facade' | 'analyse' | 'charts';
 export type ActivePanel = 'geometry' | 'wall' | 'windows' | 'roof' | 'ventilation' | 'hvac' | 'climate' | 'scenarios';
 export type SelectedMesh = 'wall' | 'window_south' | 'window_north' | 'window_east' | 'window_west' | 'roof' | 'floor' | 'geometry' | null;
 
