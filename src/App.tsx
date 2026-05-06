@@ -30,13 +30,13 @@ const viewTransition = {
 
 function ChartsView() {
   const charts = [
-    { key: 'sankey',   label: 'Flux Énergie',        el: <SankeyEnergy /> },
-    { key: 'heatmap',  label: 'Carte Pertes',         el: <HeatLossHeatmap /> },
-    { key: 'ts24',     label: 'Température 24h',      el: <TimeSeries24h /> },
-    { key: 'tsannual', label: 'Température Annuelle', el: <TimeSeriesAnnual /> },
-    { key: 'glaser',   label: 'Diagramme Glaser',     el: <GlaserDiagram /> },
-    { key: 'hvac',     label: 'Performance HVAC',     el: <HvacPerformance /> },
-    { key: 'radar',    label: 'Radar Scénarios',      el: <ScenarioRadar /> },
+    { key: 'sankey',   label: 'Energy Flow',         el: <SankeyEnergy /> },
+    { key: 'heatmap',  label: 'Heat Loss Map',        el: <HeatLossHeatmap /> },
+    { key: 'ts24',     label: '24h Temperature',      el: <TimeSeries24h /> },
+    { key: 'tsannual', label: 'Annual Temperature',   el: <TimeSeriesAnnual /> },
+    { key: 'glaser',   label: 'Glaser Diagram',       el: <GlaserDiagram /> },
+    { key: 'hvac',     label: 'HVAC Performance',     el: <HvacPerformance /> },
+    { key: 'radar',    label: 'Scenario Radar',       el: <ScenarioRadar /> },
   ];
   return (
     <div className="w-full h-full overflow-auto p-4" style={{ background: '#0A0D12' }}>

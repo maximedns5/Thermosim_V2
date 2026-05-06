@@ -17,8 +17,7 @@ const INSUL_OPTS = Object.entries(MATERIALS_DB)
   .filter(([, m]) => ['isolant', 'isolant_bio'].includes(m.category))
   .map(([id, m]) => ({ value: id, label: m.name }));
 
-// Couleurs des isolants pour visualisation
-const INSUL_COLOR_MAP: Record<string, string> = {
+const INSUL_COLORS: Record<string, string> = {
   laine_de_verre_32: '#F0C040', laine_de_verre_35: '#EAB830',
   laine_roche_40: '#D4A030', polystyrene_expanse: '#F5F0E4',
   polystyrene_extrude: '#E8E4F0', polyurethane: '#F8E4A0',
@@ -43,50 +42,41 @@ export function InsulationConfigSection() {
   const R = wall.Rtotal();
   const thick = wall.thickness() * 100;
   const insulMat = insulIdx >= 0 ? wallLayers[insulIdx].material : '';
-  const insulColor = INSUL_COLOR_MAP[insulMat] ?? '#F0C040';
+  const insulColor = INSUL_COLORS[insulMat] ?? '#F0C040';
 
   return (
-    <SectionCard
-      index={3}
-      title="Isolation"
-      subtitle="Position, matériau et épaisseur de l'isolant"
-      accent="#C1440E"
+    <SectionCard index={3} title="Insulation" subtitle="Position, material and thickness of insulation layer" accent="#C1440E"
       metrics={
         <div className="flex gap-2 flex-wrap">
-          <MetricPill label="U paroi" value={U} unit="W/(m²·K)" accent="#C1440E" critical={U > 0.5} />
-          <MetricPill label="R paroi" value={R} unit="m²·K/W" accent="#1A3550" />
-          <MetricPill label="Épaisseur" value={thick.toFixed(0)} unit="cm" accent="#6B6B6B" />
+          <MetricPill label="Wall U-value" value={U} unit="W/(m²·K)" accent="#C1440E" critical={U > 0.5} />
+          <MetricPill label="Wall R-value" value={R} unit="m²·K/W" accent="#1A3550" />
+          <MetricPill label="Thickness" value={thick.toFixed(0)} unit="cm" accent="#6B6B6B" />
         </div>
-      }
-    >
+      }>
       <ToggleGroup
-        label="Position de l'isolation"
+        label="Insulation position"
         value={insulationPosition}
         options={[
-          { value: 'ITI', label: 'ITI — Intérieur' },
-          { value: 'ITE', label: 'ITE — Extérieur' },
-          { value: 'AUCUNE', label: 'Aucune' },
+          { value: 'ITI', label: 'ITI — Interior' },
+          { value: 'ITE', label: 'ITE — Exterior' },
+          { value: 'AUCUNE', label: 'None' },
         ]}
         onChange={v => store.setConfig({ ...config, insulationPosition: v as 'ITI' | 'ITE' | 'AUCUNE' })}
       />
       {structIdx >= 0 && (
-        <MaterialDropdown label="Matériau structurel" value={wallLayers[structIdx].material}
+        <MaterialDropdown label="Structural material" value={wallLayers[structIdx].material}
           options={STRUCT_OPTS} onChange={v => updateLayer(structIdx, { material: v })} />
       )}
       {insulIdx >= 0 && insulationPosition !== 'AUCUNE' && (
         <>
-          {/* Swatch couleur isolant */}
           <div className="flex items-center gap-2 py-1">
-            <m.div
-              animate={{ background: insulColor }}
-              transition={{ duration: 0.5 }}
+            <m.div animate={{ background: insulColor }} transition={{ duration: 0.5 }}
               className="w-4 h-4 rounded-sm flex-shrink-0"
-              style={{ border: '1px solid rgba(0,0,0,0.12)' }}
-            />
-            <MaterialDropdown label="Matériau isolant" value={wallLayers[insulIdx].material}
+              style={{ border: '1px solid rgba(0,0,0,0.12)' }} />
+            <MaterialDropdown label="Insulation material" value={wallLayers[insulIdx].material}
               options={INSUL_OPTS} onChange={v => updateLayer(insulIdx, { material: v })} />
           </div>
-          <TechSlider label="Épaisseur isolant" value={wallLayers[insulIdx].thickness}
+          <TechSlider label="Insulation thickness" value={wallLayers[insulIdx].thickness}
             min={0.02} max={0.40} step={0.005} unit="m" decimals={3}
             onChange={v => updateLayer(insulIdx, { thickness: v })} />
         </>

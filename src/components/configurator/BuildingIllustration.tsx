@@ -146,7 +146,7 @@ export function BuildingIllustration({ scrollProgress }: Props) {
       width="100%"
       height="100%"
       style={{ overflow: 'visible' }}
-      aria-label="Illustration du bâtiment"
+      aria-label="Building illustration"
     >
       <defs>
         {/* Gradient fond de ciel */}
@@ -431,7 +431,7 @@ export function BuildingIllustration({ scrollProgress }: Props) {
         <motion.text x={BLD_X + BLD_W / 2 - 25} y={bldY + bldH / 2}
           fontSize="8" fill="#0B7A63" fontFamily="var(--font-mono)"
           style={{ opacity: ventilOpacity }}>
-          VMC ↕
+          HRV ↕
         </motion.text>
       </motion.g>
 
@@ -443,7 +443,7 @@ export function BuildingIllustration({ scrollProgress }: Props) {
           stroke="#4A7FA8" strokeWidth="1" />
         <text x={BLD_X + BLD_W + 30} y={GROUND_Y - 16}
           fontSize="7" fill="#4A7FA8" textAnchor="middle"
-          fontFamily="var(--font-mono)">PAC</text>
+          fontFamily="var(--font-mono)">HP</text>
         {/* Liaison frigorifique */}
         <motion.path
           d={`M ${BLD_X + BLD_W} ${bldY + bldH * 0.7} L ${BLD_X + BLD_W + 16} ${GROUND_Y - 18}`}
