@@ -9,7 +9,7 @@ export function Cartouche3D() {
   const activeView = useUIStore((s) => s.activeView);
   const config = useBuildingStore((s) => s.config);
 
-  if (activeView !== '3d') return null;
+  if (activeView !== 'configure') return null;
 
   const W = config.geometry.width;
   const L = config.geometry.length;

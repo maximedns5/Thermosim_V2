@@ -33,7 +33,7 @@ export function OrbitCameraRig() {
   };
 
   useEffect(() => {
-    if (activeView === '3d') applyPreset('isometric');
+    if (activeView === 'configure') applyPreset('isometric');
   }, [activeView]);
 
   // Parallax souris — rotation additive douce du groupe de scène
