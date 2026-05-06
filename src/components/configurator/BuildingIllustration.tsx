@@ -155,11 +155,11 @@ export function BuildingIllustration({ scrollProgress }: Props) {
   // Glow highlight per component (1 = highlighted, 0 = normal)
   const spGlow = { stiffness: 80, damping: 18 };
 
-  const wallGlow    = useSpring(useTransform(activeSection, v => v === 0 ? 1 : 0.4), spGlow);
-  const winGlow     = useSpring(useTransform(activeSection, v => v === 1 ? 1 : 0.4), spGlow);
-  const insulGlow   = useSpring(useTransform(activeSection, v => v === 2 ? 1 : 0.4), spGlow);
-  const roofGlow    = useSpring(useTransform(activeSection, v => v === 3 ? 1 : 0.4), spGlow);
-  const systemsGlow = useSpring(useTransform(activeSection, v => v === 4 || v === 5 ? 1 : 0.4), spGlow);
+  const wallGlow    = useSpring(useTransform(activeSection, (v): number => v === 0 ? 1 : 0.4), spGlow);
+  const winGlow     = useSpring(useTransform(activeSection, (v): number => v === 1 ? 1 : 0.4), spGlow);
+  const insulGlow   = useSpring(useTransform(activeSection, (v): number => v === 2 ? 1 : 0.4), spGlow);
+  const roofGlow    = useSpring(useTransform(activeSection, (v): number => v === 3 ? 1 : 0.4), spGlow);
+  const systemsGlow = useSpring(useTransform(activeSection, (v): number => v === 4 || v === 5 ? 1 : 0.4), spGlow);
 
   // Glow stroke opacity (only for active section)
   const wallGlowStroke    = useTransform(activeSection, v => v === 0 ? 0.9 : 0);
