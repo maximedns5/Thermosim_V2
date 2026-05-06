@@ -1,7 +1,7 @@
 // Store UI — navigation, panneaux, onglets
 import { create } from 'zustand';
 
-export type ViewMode = '3d' | 'facade' | 'coupe' | 'plan' | 'analyse' | 'charts';
+export type ViewMode = 'configure' | 'facade' | 'coupe' | 'plan' | 'analyse' | 'charts';
 export type ActivePanel = 'geometry' | 'wall' | 'windows' | 'roof' | 'ventilation' | 'hvac' | 'climate' | 'scenarios';
 export type SelectedMesh = 'wall' | 'window_south' | 'window_north' | 'window_east' | 'window_west' | 'roof' | 'floor' | 'geometry' | null;
 
@@ -67,7 +67,7 @@ export const useUIStore = create<UIStore>()((set) => ({
   hoveredMesh: null,
   setHoveredMesh: (v) => set({ hoveredMesh: v }),
 
-  activeView: '3d',
+  activeView: 'configure',
   activePanel: 'geometry',
   isSimRunning: false,
   showSectionCut: false,

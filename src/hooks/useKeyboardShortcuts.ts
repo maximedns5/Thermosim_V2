@@ -13,7 +13,7 @@ export function useKeyboardShortcuts() {
       if (['input', 'select', 'textarea'].includes(tag)) return;
 
       switch (e.key) {
-        case '1': setActiveView('3d'); break;
+        case '1': setActiveView('configure'); break;
         case '2': setActiveView('facade'); break;
         case '3': setActiveView('coupe'); break;
         case '4': setActiveView('plan'); break;
