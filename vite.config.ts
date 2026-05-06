@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  base: '/Thermosim_V2/',
+  base: process.env.NODE_ENV === 'production' ? '/Thermosim_V2/' : '/',
   plugins: [react()],
   resolve: {
     alias: {

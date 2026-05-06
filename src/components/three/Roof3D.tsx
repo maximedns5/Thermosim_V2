@@ -1,17 +1,38 @@
-// Toiture 3D — terrasse plate ou toit incliné
-import { useMemo } from 'react';
+// Roof3D — matériaux physiques selon type, cliquable
+import { useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { BlueprintMaterial } from './BlueprintMaterial';
+import { useUIStore } from '../../store/uiStore';
 
-interface Roof3DProps {
-  width: number;
-  depth: number;
-  y: number;
-  type?: string;
-  thickness?: number;
-}
+const ROOF_COLORS: Record<string, string> = {
+  flat_concrete:  '#8A8682',
+  green:          '#4A6741',
+  inclined_tiles: '#7A4030',
+  cool_roof:      '#C8C8C8',
+};
 
-export function Roof3D({ width, depth, y, type = 'flat_concrete', thickness = 0.35 }: Roof3DProps) {
+const ROOF_ROUGHNESS: Record<string, number> = {
+  flat_concrete: 0.88,
+  green:         0.95,
+  inclined_tiles:0.80,
+  cool_roof:     0.25,
+};
+
+const ROOF_METALNESS: Record<string, number> = {
+  flat_concrete: 0.02,
+  green:         0.01,
+  inclined_tiles:0.05,
+  cool_roof:     0.35,
+};
+
+const HOVER_EMISSIVE  = new THREE.Color('#4A7FA8');
+const SELECT_EMISSIVE = new THREE.Color('#1A3550');
+
+export function Roof3D({ width, depth, y, type = 'flat_concrete', thickness = 0.35 }: {
+  width: number; depth: number; y: number; type?: string; thickness?: number;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const { selectedMesh, setSelectedMesh, setHoveredMesh } = useUIStore();
+  const selected = selectedMesh === 'roof';
   const isInclined = type === 'inclined_tiles';
 
   const flatGeo = useMemo(
@@ -30,19 +51,34 @@ export function Roof3D({ width, depth, y, type = 'flat_concrete', thickness = 0.
   }, [width, depth, isInclined]);
 
   const geo = isInclined && ridgeGeo ? ridgeGeo : flatGeo;
-  const edgesGeo = useMemo(() => new THREE.EdgesGeometry(geo), [geo]);
-
+  const edgeGeo = useMemo(() => new THREE.EdgesGeometry(geo), [geo]);
   const position: [number, number, number] = isInclined
     ? [0, y, -depth / 2 - 0.15]
     : [0, y + thickness / 2, 0];
 
+  const emissive    = selected ? SELECT_EMISSIVE : hovered ? HOVER_EMISSIVE : new THREE.Color(0x000000);
+  const emissiveInt = selected ? 0.35 : hovered ? 0.18 : 0;
+
+  const handlers = {
+    onPointerOver: (e: any) => { e.stopPropagation(); setHovered(true); setHoveredMesh('roof'); document.body.style.cursor = 'pointer'; },
+    onPointerOut:  () => { setHovered(false); setHoveredMesh(null); document.body.style.cursor = 'auto'; },
+    onClick:       (e: any) => { e.stopPropagation(); setSelectedMesh(selected ? null : 'roof'); },
+  };
+
   return (
     <group position={position}>
-      <mesh geometry={geo}>
-        <BlueprintMaterial pattern={isInclined ? 0 : 1} baseColor="#5C5852" lineColor="#1A1612" />
+      <mesh geometry={geo} castShadow receiveShadow {...handlers}>
+        <meshPhysicalMaterial
+          color={ROOF_COLORS[type] ?? '#8A8682'}
+          roughness={ROOF_ROUGHNESS[type] ?? 0.85}
+          metalness={ROOF_METALNESS[type] ?? 0.02}
+          emissive={emissive}
+          emissiveIntensity={emissiveInt}
+          envMapIntensity={0.5}
+        />
       </mesh>
-      <lineSegments geometry={edgesGeo}>
-        <lineBasicMaterial color="#1A1612" />
+      <lineSegments geometry={edgeGeo}>
+        <lineBasicMaterial color={selected ? '#4A7FA8' : '#1A1814'} transparent opacity={selected ? 0.8 : 0.35} />
       </lineSegments>
     </group>
   );

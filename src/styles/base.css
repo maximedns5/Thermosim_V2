@@ -150,3 +150,25 @@ code, pre, .mono {
 .metric-summary .ms-equals { color: var(--color-ink-3); text-align: center; }
 .metric-summary .ms-value  { color: var(--color-ink); font-weight: 500; text-align: right; font-feature-settings: "tnum"; }
 .metric-summary .ms-unit   { color: var(--color-ink-3); font-size: 9px; }
+
+/* ── DARK PANEL — ContextualEditor sur fond #0A0D12 ─────── */
+.dark-panel label,
+.dark-panel .label,
+.dark-panel span[style*="color: var(--color-ink-3)"] {
+  color: rgba(232,228,218,0.55) !important;
+}
+.dark-panel select,
+.dark-panel input[type=range] {
+  color: #E8E4DA;
+  border-color: rgba(255,255,255,0.12) !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+.dark-panel .section-rule {
+  border-color: rgba(255,255,255,0.08) !important;
+}
+.dark-panel .ms-label,
+.dark-panel .ms-symbol,
+.dark-panel .ms-unit,
+.dark-panel .ms-equals { color: rgba(232,228,218,0.4) !important; }
+.dark-panel .ms-value  { color: #E8E4DA !important; }
+.dark-panel .metric-summary { border-color: rgba(255,255,255,0.08) !important; }

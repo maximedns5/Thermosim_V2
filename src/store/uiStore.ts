@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 export type ViewMode = '3d' | 'facade' | 'coupe' | 'plan' | 'analyse' | 'charts';
 export type ActivePanel = 'geometry' | 'wall' | 'windows' | 'roof' | 'ventilation' | 'hvac' | 'climate' | 'scenarios';
+export type SelectedMesh = 'wall' | 'window_south' | 'window_north' | 'window_east' | 'window_west' | 'roof' | 'floor' | 'geometry' | null;
 
 interface UIStore {
   /* App gate */
@@ -17,6 +18,12 @@ interface UIStore {
   configDrawerOpen: boolean;
   setConfigDrawerOpen: (v: boolean) => void;
   toggleConfigDrawer: () => void;
+
+  /* 3D selection */
+  selectedMesh: SelectedMesh;
+  setSelectedMesh: (v: SelectedMesh) => void;
+  hoveredMesh: string | null;
+  setHoveredMesh: (v: string | null) => void;
 
   /* Views & panels */
   activeView: ViewMode;
@@ -54,6 +61,11 @@ export const useUIStore = create<UIStore>()((set) => ({
   configDrawerOpen: false,
   setConfigDrawerOpen: (v) => set({ configDrawerOpen: v }),
   toggleConfigDrawer: () => set((s) => ({ configDrawerOpen: !s.configDrawerOpen })),
+
+  selectedMesh: null,
+  setSelectedMesh: (v) => set({ selectedMesh: v }),
+  hoveredMesh: null,
+  setHoveredMesh: (v) => set({ hoveredMesh: v }),
 
   activeView: '3d',
   activePanel: 'geometry',
